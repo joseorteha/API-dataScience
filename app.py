@@ -176,6 +176,78 @@ def predecir_sentimiento(entrada: TextoEntrada):
         )
 
 # =========================
+# Endpoint adicional para compatibilidad con Backend Java
+# =========================
+class TextoEntradaJava(BaseModel):
+    text: str
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "text": "El servicio fue excelente"
+            }
+        }
+
+class RespuestaJava(BaseModel):
+    texto: str
+    prevision: str
+    probabilidad: float
+
+@app.post("/sentiment", response_model=RespuestaJava)
+def analizar_sentimiento_java(entrada: TextoEntradaJava):
+    """
+    Endpoint compatible con el backend Java.
+    
+    - **text**: Texto a analizar
+    
+    Retorna:
+    - **texto**: Texto original
+    - **prevision**: 'positivo' o 'negativo'
+    - **probabilidad**: Confianza de la predicción (0-1)
+    """
+    try:
+        # Validar que el texto no esté vacío
+        if not entrada.text or entrada.text.strip() == "":
+            raise HTTPException(
+                status_code=400,
+                detail="El texto no puede estar vacío"
+            )
+        
+        # Limpiar el texto
+        texto_limpio = limpiar_texto(entrada.text)
+        
+        # Validar que después de la limpieza quede algo
+        if not texto_limpio:
+            raise HTTPException(
+                status_code=400,
+                detail="El texto no contiene palabras válidas después de la limpieza"
+            )
+        
+        # Vectorizar el texto
+        texto_vector = tfidf.transform([texto_limpio])
+        
+        # Predecir sentimiento
+        prediccion = modelo.predict(texto_vector)[0]
+        
+        # Obtener probabilidades (confianza)
+        probabilidades = modelo.predict_proba(texto_vector)[0]
+        confianza = float(max(probabilidades))
+        
+        return RespuestaJava(
+            texto=entrada.text,
+            prevision=prediccion,
+            probabilidad=round(confianza, 4)
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al procesar la predicción: {str(e)}"
+        )
+
+# =========================
 # Ejecución (para Render)
 # =========================
 if __name__ == "__main__":

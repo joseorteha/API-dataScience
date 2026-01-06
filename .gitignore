@@ -68,3 +68,6 @@ dataset_*.csv
 tmp/
 temp/
 *.tmp
+
+# Otros proyectos (ya tienen su propio repositorio)
+back_sentimenAPI_Hakaton/
